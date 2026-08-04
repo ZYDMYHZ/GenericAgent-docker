@@ -14,13 +14,26 @@ docker/wehub.py — 网页版 Hub：一键启动/停止 GenericAgent 各类客�
 
 环境变量: WEHUB_HOST / WEHUB_PORT / WEHUB_TOKEN (优先级: 命令行参数 > 环境变量)
 """
-import os, sys, json, time, ast, signal, socket, threading, subprocess, importlib.util
+import os, sys, json, time, ast, signal, socket, threading, subprocess, importlib.util, shutil
 from collections import deque
 from bottle import route, get, post, request, response, run
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目根 (/app)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+
+# 补齐 compress_session.py: .dockerignore 排除了 memory/L4_raw_sessions,
+# 镜像/已有数据卷中均无此文件 → 启动时从 docker/ 内置副本补到标准位置
+_CS_DIR = os.path.join(ROOT, "memory", "L4_raw_sessions")
+_CS_DST = os.path.join(_CS_DIR, "compress_session.py")
+_CS_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "compress_session.py")
+if not os.path.isfile(_CS_DST) and os.path.isfile(_CS_SRC):
+    try:
+        os.makedirs(_CS_DIR, exist_ok=True)
+        shutil.copyfile(_CS_SRC, _CS_DST)
+        print(f"[WEHUB] compress_session.py 已补齐到 {_CS_DST}")
+    except Exception as e:
+        print(f"[WEHUB] compress_session 补齐失败: {e}")
 LOG_DIR = os.path.join(ROOT, "temp", "wehub_logs")
 
 HOST = os.environ.get("WEHUB_HOST", "0.0.0.0")
@@ -399,10 +412,14 @@ function card(s){
     <div class="btns">${btn}<button class="b-log" onclick="openLog('${s.key}')">日志</button></div>
     ${missing}</div>`;
 }
+let lastSig='';
 async function refresh(){
   try{const d=await api('/api/services');
-  document.getElementById('grid').innerHTML=d.services.map(card).join('');}
-  catch(e){}
+  const sig=d.services.map(s=>s.key+':'+(s.running?1:0)+':'+(s.startable?1:0)).join('|');
+  if(sig!==lastSig || !document.querySelector('#grid .card')){
+    document.getElementById('grid').innerHTML=d.services.map(card).join('');
+    lastSig=sig;
+  }}catch(e){}
 }
 refresh();
 setInterval(refresh, 3000);
