@@ -98,10 +98,18 @@ def discover_services():
             svcs[f] = {"name": f, "cat": "Desktop", "file": f"frontends/{f}",
                        "cmd": None, "port": None, "kind": "desktop"}
             continue
+        if f == "stapp.py":
+            continue  # 固定项已在上方注册(streamlit run 8501), 避免被覆盖成裸脚本
+        if "stapp" in f:  # streamlit 应用必须用 streamlit run 启动, 裸 python 会跑完即退出
+            cmd = [sys.executable, "-m", "streamlit", "run", f"frontends/{f}",
+                   "--server.port", str(FIXED_PORTS.get(f, 8502)),
+                   "--server.address", "0.0.0.0", "--server.headless", "true"]
+        else:
+            cmd = [sys.executable, f"frontends/{f}"]
         svcs[f] = {
             "name": f.replace(".py", ""), "cat": CATEGORY.get(f, "App"),
             "file": f"frontends/{f}",
-            "cmd": [sys.executable, f"frontends/{f}"],
+            "cmd": cmd,
             "port": FIXED_PORTS.get(f), "kind": "frontend",
         }
     # reflect/*.py (agentmain --reflect)
