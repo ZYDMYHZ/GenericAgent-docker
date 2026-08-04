@@ -59,10 +59,17 @@ def scan_imports(path):
     return mods
 
 
+# 本地模块目录: frontends/ 与 memory/L4_raw_sessions/(scheduler 动态导入 compress_session)
+LOCAL_MODULE_DIRS = []
+for _d in (os.path.join(ROOT, "frontends"), os.path.join(ROOT, "memory", "L4_raw_sessions")):
+    if os.path.isdir(_d):
+        LOCAL_MODULE_DIRS.append(_d)
+
+
 def mod_available(name):
-    # frontends/ 下的本地模块可被 stapp/tgapp 等导入
-    if os.path.isdir(os.path.join(ROOT, "frontends")):
-        sys.path.append(os.path.join(ROOT, "frontends"))
+    for _d in LOCAL_MODULE_DIRS:
+        if _d not in sys.path:
+            sys.path.append(_d)
     try:
         return importlib.util.find_spec(name) is not None
     except (ImportError, ValueError):
