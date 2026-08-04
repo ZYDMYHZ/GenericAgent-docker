@@ -337,6 +337,13 @@ def render_main_stream(frozen_host, live_slot, stats_slot, render_state):
     response = re.sub(r'\**LLM Running \(Turn \d+\) \.\.\.\**\s*$', '', response).rstrip()
     segments = fold_turns(response)
     n_done = max(0, len(segments) - 1)
+    # Streamlit fragment 规则: 外部容器必须由 fragment 自身在 initial run 写入一次,
+    # 否则 standalone rerun 时报 StreamlitAPIException(mount 外的占位缓存键不匹配)。
+    if not render_state.get('claimed'):
+        with frozen_host:
+            st.empty()
+        stats_slot.empty()
+        render_state['claimed'] = True
     while render_state['frozen'] < n_done:
         with frozen_host:
             render_segments([segments[render_state['frozen']]])
@@ -352,12 +359,6 @@ def mount_main_stream(stats_slot):
     with st.chat_message("assistant"):
         frozen_host = st.container()
         live_slot = st.empty()
-        # Fragment 规则: 外部容器必须在 initial run 被写一次,
-        # 否则 fragment rerun 写入时报 StreamlitAPIException(容器未预留位置)
-        with frozen_host:
-            st.empty()
-        live_slot.empty()
-        stats_slot.empty()
         render_main_stream(frozen_host, live_slot, stats_slot, {'frozen': 0})
 
 if not hasattr(agent, "_ui_messages"): agent._ui_messages = st.session_state.get("messages", [])
