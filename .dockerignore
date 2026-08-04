@@ -1,0 +1,41 @@
+# ── 版本控制 / 元数据 ──
+.git
+.github
+.gitattributes
+.gitignore
+CONTRIBUTING.md
+
+# ── 密钥与敏感信息(绝不能进镜像!) ──
+mykey.py
+memory/mykey.py
+memory/global_mem.txt
+memory/global_mem_insight.txt
+memory/file_access_stats.json
+.env
+auth.json
+keychain_*.json
+
+# ── 运行时数据(体积大且为本机特定) ──
+temp/
+tmp/
+memory/L4_raw_sessions/
+memory/__pycache__/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.venv/
+venv/
+.streamlit/
+
+# ── 大体积非必要资源(镜像瘦身) ──
+assets/demo/
+assets/images/
+assets/GenericAgent_Technical_Report.pdf
+
+# ── 平台无关 ──
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
