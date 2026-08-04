@@ -1,39 +1,17 @@
-# GenericAgent 一键编排
+# GenericAgent 一键编排（单容器）
 # 用法: docker compose up -d --build
 # 详见 docs/docker_zh.md
 services:
-  genericagent:
+  ga:
     build: .
     image: genericagent:latest
-    container_name: genericagent
+    container_name: ga
+    # 常驻 Web Hub 管理面板(8901); 8501 Streamlit 主界面默认关闭, 由面板一键开关
+    command: wehub
     ports:
-      - "8501:8501"
-    environment:
-      - GA_MODE=streamlit        # streamlit | tui | cli | agent
-      - PORT=8501
-      - GA_LANG=zh
-    volumes:
-      # 必填: API 密钥(从 mykey_template.py 复制为 ./mykey.py 并填写后挂载, 只读)
-      - ./mykey.py:/app/mykey.py:ro
-      # 可选: 持久化自进化记忆(首次启动自动从内置种子恢复 SOP)
-      # - ./ga_memory:/app/memory
-      # 可选: 持久化工作目录
-      # - ./ga_temp:/app/temp
-    restart: unless-stopped
-    # TUI 交互模式(改用: docker compose run --rm genericagent tui):
-    # stdin_open: true
-    # tty: true
-
-  # ── 网页版 Hub 管理面板 (可选, 与主界面一起启动) ──────────
-  # 一键启动/停止各类客户端 (IM Bot / Reflect / Web UI), 端口 8901
-  wehub:
-    build: .
-    image: genericagent:latest
-    container_name: ga-wehub
-    command: wehub            # 覆盖镜像默认 CMD(streamlit), 使入口走 wehub 模式
-    ports:
-      - "8901:8901"     # 管理面板
-      - "8502:8502"     # 面板内启动 stapp2 的对外端口
+      - "8901:8901"     # Web Hub 管理面板 (常驻)
+      - "8501:8501"     # Streamlit 主界面 (面板内启动 stapp 后可用, 默认关闭)
+      - "8502:8502"     # stapp2 备用界面 (面板内启动后可用)
     environment:
       - GA_MODE=wehub
       # 鉴权口令: 在仓库目录创建 .env 文件写入 WEHUB_TOKEN=你的口令
@@ -41,10 +19,13 @@ services:
       - WEHUB_TOKEN=${WEHUB_TOKEN:-}
       - GA_LANG=zh
     volumes:
+      # 必填: API 密钥(从 mykey_template.py 复制为 ./mykey.py 并填写后挂载, 只读)
       - ./mykey.py:/app/mykey.py:ro
+      # 持久化: 自进化记忆 + 工作目录(首次启动自动从内置种子恢复 SOP)
       - ga_memory:/app/memory
       - ga_temp:/app/temp
     restart: unless-stopped
+    # 其他模式(一次性): docker compose run --rm --no-deps ga tui / cli / agent ...
 
 volumes:
   ga_memory:

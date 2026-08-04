@@ -36,17 +36,22 @@ docker compose build
 
 ### 3. 运行
 
-**Web UI（默认，Streamlit）**：
+**Compose 一键部署（推荐，单容器）**：
+
+```bash
+docker compose up -d --build
+# 浏览器打开 http://localhost:8901  → Web Hub 管理面板（常驻，鉴权见下）
+# 8501 Streamlit 主界面默认不启动; 在面板点「stapp.py ▶ 启动」即可打开
+# http://localhost:8501; 点「停止」即关闭 —— 8501 开关完全由面板控制
+```
+
+**单容器手动运行（等效）**：
 
 ```bash
 docker run -d --name ga \
-  -p 8501:8501 \
+  -p 8901:8901 -p 8501:8501 -p 8502:8502 \
   -v "$(pwd)/mykey.py:/app/mykey.py:ro" \
-  genericagent:latest
-# 浏览器打开 http://localhost:8501
-
-# Compose 方式
-docker compose up -d
+  genericagent:latest wehub
 ```
 
 **终端 TUI（交互式）**：
@@ -117,8 +122,8 @@ docker run -d --name ga \
 
 ### 启动方式
 
-- **Compose 方式（推荐）**：`docker compose up -d --build` 会同时启动主界面（8501）与管理面板（8901），访问 `http://服务器IP:8901`
-- **单独运行**：`docker compose up -d wehub` 或 `docker run -d -p 8901:8901 -e GA_MODE=wehub -v $(pwd)/mykey.py:/app/mykey.py:ro genericagent:latest`
+- **Compose 方式（推荐）**：`docker compose up -d --build` 启动唯一容器 `ga`，8901 面板常驻；8501 主界面**默认关闭**，在面板中点「stapp.py ▶ 启动」后通过 `http://服务器IP:8501` 访问（停止即关闭）。访问 `http://服务器IP:8901` 进入面板
+- **单独运行**：`docker compose run --rm ga wehub` 或 `docker run -d -p 8901:8901 -e GA_MODE=wehub -v $(pwd)/mykey.py:/app/mykey.py:ro genericagent:latest wehub`
 
 ### 访问口令
 
