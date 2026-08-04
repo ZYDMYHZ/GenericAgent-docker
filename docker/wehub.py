@@ -102,9 +102,7 @@ def discover_services():
         if f in EXCLUDE:
             continue
         if f in DESKTOP_ONLY:
-            svcs[f] = {"name": f, "cat": "Desktop", "file": f"frontends/{f}",
-                       "cmd": None, "port": None, "kind": "desktop"}
-            continue
+            continue  # 桌面/TUI 类需终端交互, 容器面板不显示
         if f == "stapp.py":
             continue  # 固定项已在上方注册(streamlit run 8501), 避免被覆盖成裸脚本
         if "stapp" in f:  # streamlit 应用必须用 streamlit run 启动, 裸 python 会跑完即退出
@@ -124,11 +122,24 @@ def discover_services():
     if os.path.isdir(rf):
         for f in sorted(os.listdir(rf)):
             if f.endswith(".py") and not f.startswith("_"):
+                # 提取脚本内的端口锁(如 scheduler 的 127.0.0.1:45762 单实例锁)
+                lp = None
+                try:
+                    _tree = ast.parse(open(os.path.join(rf, f), encoding="utf-8", errors="replace").read())
+                    for _node in ast.walk(_tree):
+                        if (isinstance(_node, ast.Call) and isinstance(_node.func, ast.Attribute)
+                                and _node.func.attr == "bind" and _node.args):
+                            _t = _node.args[0]
+                            if isinstance(_t, ast.Tuple) and len(_t.elts) == 2 \
+                                    and isinstance(_t.elts[1], ast.Constant) and isinstance(_t.elts[1].value, int):
+                                lp = _t.elts[1].value
+                except Exception:
+                    pass
                 svcs[f"reflect/{f}"] = {
                     "name": f"reflect/{f}", "cat": "Reflect",
                     "file": f"reflect/{f}",
                     "cmd": [sys.executable, "agentmain.py", "--reflect", f"reflect/{f}"],
-                    "port": None, "kind": "reflect",
+                    "port": None, "kind": "reflect", "lock_port": lp,
                 }
     return svcs
 
@@ -160,6 +171,9 @@ def start_service(key, svc):
             return {"ok": False, "msg": "已在运行"}
         if svc.get("cmd") is None:
             return {"ok": False, "msg": "该服务在此环境不可启动"}
+        lp = svc.get("lock_port")
+        if lp and port_open(lp, "127.0.0.1"):
+            return {"ok": False, "msg": f"端口锁 {lp} 已被占用(已有 Reflect 实例运行), 请先停止后再启动"}
         os.makedirs(LOG_DIR, exist_ok=True)
         logfile = os.path.join(LOG_DIR, key.replace("/", "_") + ".log")
         fh = open(logfile, "a", encoding="utf-8", errors="replace")
@@ -271,7 +285,7 @@ def api_services():
     return {"ok": True, "services": [service_state(k, v) for k, v in svcs.items()]}
 
 
-@post("/api/start/<key>")
+@post("/api/start/<key:path>")
 def api_start(key):
     if not check_token():
         response.status = 401
@@ -282,7 +296,7 @@ def api_start(key):
     return start_service(key, svc)
 
 
-@post("/api/stop/<key>")
+@post("/api/stop/<key:path>")
 def api_stop(key):
     if not check_token():
         response.status = 401
@@ -290,7 +304,7 @@ def api_stop(key):
     return stop_service(key)
 
 
-@get("/api/log/<key>")
+@get("/api/log/<key:path>")
 def api_log(key):
     if not check_token():
         response.status = 401
@@ -298,6 +312,15 @@ def api_log(key):
     p = procs.get(key)
     lines = list(p["buf"]) if p else []
     return {"ok": True, "lines": lines}
+
+
+@get("/logs/<key:path>")
+def logs_page(key):
+    # 大窗口独立日志页(?token= 与 header 均可)
+    if not check_token() and request.query.get("token") != TOKEN:
+        response.status = 401
+        return "需要 WEHUB_TOKEN: 访问 /logs/" + key + "?token=xxx"
+    return LOGS_HTML.replace("__KEY__", json.dumps(key)).replace("__TOKEN__", json.dumps(TOKEN))
 
 
 @get("/")
@@ -334,9 +357,7 @@ h1 .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);animation:
 button{border:0;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;color:#fff}
 .b-start{background:var(--acc)}.b-stop{background:var(--bad)}
 .b-dis{background:#334155;cursor:not-allowed}
-.logs{margin-top:10px;background:#0b1220;border:1px solid var(--line);border-radius:8px;
-padding:8px;max-height:180px;overflow:auto;font:11px/1.45 ui-monospace,Consolas,monospace;
-color:#cbd5e1;white-space:pre-wrap;display:none}
+.b-log{background:#1e3a5f}
 .port{padding:2px 8px;border-radius:6px;font-size:11px}
 .p-open{background:rgba(34,197,94,.15);color:var(--ok)}
 .p-closed{background:rgba(100,116,139,.15);color:var(--mut)}
@@ -358,12 +379,8 @@ async function act(key, what){
   await api('/api/'+what+'/'+encodeURIComponent(key),{method:'POST'});
   refresh();
 }
-async function toggleLog(key, el){
-  const box=document.getElementById('log-'+key);
-  if(box.style.display==='block'){box.style.display='none';return;}
-  const d=await api('/api/log/'+encodeURIComponent(key));
-  box.textContent=d.lines.join('')||'(无日志)';
-  box.style.display='block';box.scrollTop=box.scrollHeight;
+function openLog(key){
+  window.open('/logs/'+key+(TOKEN?'?token='+encodeURIComponent(TOKEN):''), 'ga_log', 'width=1020,height=740');
 }
 function card(s){
   const st=s.running?'run':(s.port_open?'run':'off');
@@ -379,8 +396,8 @@ function card(s){
     <div class="top"><span class="name">${esc(s.name)}</span>
       <span><span class="tag">${esc(s.cat)}</span> ${portHtml}</span></div>
     <div class="meta">${esc(s.file)}<br><span class="st ${st}"></span>${stTxt}</div>
-    <div class="btns">${btn}<button class="b-dis" onclick="toggleLog('${s.key}',this)">日志</button></div>
-    <div class="logs" id="log-${s.key}"></div>${missing}</div>`;
+    <div class="btns">${btn}<button class="b-log" onclick="openLog('${s.key}')">日志</button></div>
+    ${missing}</div>`;
 }
 async function refresh(){
   try{const d=await api('/api/services');
@@ -393,10 +410,44 @@ setInterval(refresh, 3000);
 </body></html>
 """
 
+# ── 独立日志大窗口页面 ─────────────────────────────────────────
+LOGS_HTML = """<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>GA Hub · 日志</title><style>
+body{background:#0b1220;color:#cbd5e1;font:12px/1.5 ui-monospace,Consolas,monospace;margin:0;padding:0 12px 12px}
+#head{position:sticky;top:0;background:#0f172a;padding:8px 12px;border-bottom:1px solid #334155;
+display:flex;gap:14px;align-items:center;font-size:13px;z-index:9}
+#head b{color:#e2e8f0}#st{color:#64748b}
+#log{white-space:pre-wrap;padding:12px 4px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#64748b}
+</style></head><body>
+<div id="head"><span class="dot" id="dot"></span><b id="title">日志</b><span id="st">连接中…</span></div>
+<div id="log">(加载中…)</div>
+<script>
+const KEY=__KEY__, TOKEN=__TOKEN__;
+const hdr=TOKEN?{"X-WEHUB-TOKEN":TOKEN}:{};
+let last=0;
+async function tick(){
+  try{
+    const r=await fetch('/api/log/'+KEY,{headers:hdr});
+    if(r.status===401){document.getElementById('st').textContent='401 需要 token';return}
+    const d=await r.json();
+    const el=document.getElementById('log');
+    if(d.lines.length!==last){
+      last=d.lines.length;
+      const atBottom=el.scrollHeight-el.scrollTop<90;
+      el.textContent=d.lines.join('')||'(暂无输出)';
+      if(atBottom) el.scrollTop=el.scrollHeight;
+    }
+    document.getElementById('st').textContent=last+' 行 · 每2秒刷新 · '+new Date().toLocaleTimeString();
+  }catch(e){document.getElementById('st').textContent='连接失败: '+e.message}
+}
+tick(); setInterval(tick,2000);
+</script></body></html>"""
+
 if __name__ == "__main__":
     os.makedirs(LOG_DIR, exist_ok=True)
     if not TOKEN:
-        print("[WEHUB] ⚠️ 未设置 WEHUB_TOKEN —— 面板无鉴权，任何能访问本端口的人可操作你的客户端！")
+        print("[WEHUB] 警告: 未设置 WEHUB_TOKEN, 面板无鉴权 - 任何能访问本端口的人可操作你的客户端!")
         print("[WEHUB]    建议: docker compose 目录 .env 写入 WEHUB_TOKEN=口令 后重建, 访问 http://HOST:8901/?token=口令")
     print(f"[WEHUB] GA Web Hub on http://{HOST}:{PORT}  (token: {'set' if TOKEN else 'none'})  root={ROOT}")
     run(host=HOST, port=PORT, quiet=True)
