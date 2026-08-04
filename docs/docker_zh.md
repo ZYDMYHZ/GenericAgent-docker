@@ -111,6 +111,43 @@ docker run -d --name ga \
 - **想装 IM Bot 前端**：在 `requirements-docker.txt` 追加对应 SDK（如 `python-telegram-bot`、`lark-oapi`）后重新 `docker build`。
 - **容器内时区/语言**：默认 UTC / 中文提示（`GA_LANG=zh`）。可用 `-e TZ=Asia/Shanghai` 调整时区。
 
+## 网页版 Hub 管理面板（wehub）
+
+容器内置一个轻量网页管理面板（`docker/wehub.py`，仅依赖 bottle），用于**一键启动/停止各类客户端**：IM Bot（tg/dc/qq/飞书/钉钉/企微/微信）、Reflect 反射服务、Web UI 等，并实时查看日志与端口状态。
+
+### 启动方式
+
+- **Compose 方式（推荐）**：`docker compose up -d --build` 会同时启动主界面（8501）与管理面板（8901），访问 `http://服务器IP:8901`
+- **单独运行**：`docker compose up -d wehub` 或 `docker run -d -p 8901:8901 -e GA_MODE=wehub -v $(pwd)/mykey.py:/app/mykey.py:ro genericagent:latest`
+
+### 访问口令
+
+面板默认无口令（内网可用）。建议在 `docker-compose.yml` 中设置：
+
+```yaml
+environment:
+  - WEHUB_TOKEN=你的口令
+```
+
+设置后访问 `http://IP:8901/?token=你的口令` 即可记住登录（或请求头 `X-WEHUB-TOKEN`）。
+
+### 面板能力
+
+| 能力 | 说明 |
+|---|---|
+| 服务发现 | 自动列出 `frontends/*app*.py` 与 `reflect/*.py` |
+| 依赖检测 | 缺 SDK 的服务会标记「缺依赖」并灰置启动按钮 |
+| 一键启停 | 启动/停止子进程，失败自动超时强杀 |
+| 日志 | 每个服务最近 500 行，实时查看 |
+| 端口探测 | 每 3 秒刷新运行状态与端口开合 |
+
+### 使用注意
+
+- **IM Bot 类**（tg/dc/qq/飞书/钉钉/企微/微信）是**出站连接**，面板内启动即可，无需额外端口映射
+- **缺依赖**：在 `requirements-docker.txt` 追加 SDK（如 `python-telegram-bot`、`lark-oapi`、`qrcode`、`pycryptodome`）后 `docker compose up -d --build` 重建
+- **Web UI 类**：面板内启动 `stapp2` 后可通过 `http://IP:8502` 访问（compose 已映射）；`stapp` 主界面由主容器直接提供（8501），面板内不必重复启动
+- 面板容器与主容器共享同一 memory/temp 卷，bot 会话记忆与主界面一致
+
 ## 与原生安装的差异
 
 - 无 pywebview 桌面壳、无 IM bot（按需自装）、无 GUI 浏览器注入。

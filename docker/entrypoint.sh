@@ -38,6 +38,11 @@ case "$MODE" in
         --server.address 0.0.0.0 \
         --server.headless true \
     ;;
+  wehub|hub)
+    echo "[GA] Web Hub 管理面板: http://localhost:8901 (token: ${WEHUB_TOKEN:-未设置})"
+    echo "[GA] 可一键启动/停止: IM Bot (tg/dc/qq/fs/dingtalk/wecom/wechat), Reflect 服务, Web UI"
+    exec python docker/wehub.py --port 8901
+    ;;
   tui)
     echo "[GA] TUI 模式(需要 docker run -it)"
     exec python frontends/tui_v3.py

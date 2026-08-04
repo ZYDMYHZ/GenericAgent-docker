@@ -23,3 +23,26 @@ services:
     # TUI 交互模式(改用: docker compose run --rm genericagent tui):
     # stdin_open: true
     # tty: true
+
+  # ── 网页版 Hub 管理面板 (可选, 与主界面一起启动) ──────────
+  # 一键启动/停止各类客户端 (IM Bot / Reflect / Web UI), 端口 8901
+  wehub:
+    build: .
+    image: genericagent:latest
+    container_name: ga-wehub
+    ports:
+      - "8901:8901"     # 管理面板
+      - "8502:8502"     # 面板内启动 stapp2 的对外端口
+    environment:
+      - GA_MODE=wehub
+      - WEHUB_TOKEN=     # 建议设置访问口令: WEHUB_TOKEN=你的口令
+      - GA_LANG=zh
+    volumes:
+      - ./mykey.py:/app/mykey.py:ro
+      - ga_memory:/app/memory
+      - ga_temp:/app/temp
+    restart: unless-stopped
+
+volumes:
+  ga_memory:
+  ga_temp:
