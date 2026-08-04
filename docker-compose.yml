@@ -36,7 +36,9 @@ services:
       - "8502:8502"     # 面板内启动 stapp2 的对外端口
     environment:
       - GA_MODE=wehub
-      - WEHUB_TOKEN=     # 建议设置访问口令: WEHUB_TOKEN=你的口令
+      # 鉴权口令: 在仓库目录创建 .env 文件写入 WEHUB_TOKEN=你的口令
+      # (示例: echo "WEHUB_TOKEN=MySecret123" >> .env)  .env 已被 .gitignore 排除
+      - WEHUB_TOKEN=${WEHUB_TOKEN:-}
       - GA_LANG=zh
     volumes:
       - ./mykey.py:/app/mykey.py:ro

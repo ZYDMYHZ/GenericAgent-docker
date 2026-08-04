@@ -143,6 +143,12 @@ environment:
 
 ### 使用注意
 
+- **鉴权（推荐开启）**：在仓库目录创建 `.env` 文件：
+  ```bash
+  echo "WEHUB_TOKEN=你的口令" >> .env
+  docker compose up -d --build
+  ```
+  之后访问 `http://IP:8901/?token=你的口令`（浏览器记住后无需再带）。未设 token 时面板**无鉴权**，任何能访问 8901 端口的人都能操作你的 bot——公网部署务必设置
 - **IM Bot 类**（tg/dc/qq/飞书/钉钉/企微/微信）是**出站连接**，面板内启动即可，无需额外端口映射
 - **缺依赖**：在 `requirements-docker.txt` 追加 SDK（如 `python-telegram-bot`、`lark-oapi`、`qrcode`、`pycryptodome`）后 `docker compose up -d --build` 重建
 - **Web UI 类**：面板内启动 `stapp2` 后可通过 `http://IP:8502` 访问（compose 已映射）；`stapp` 主界面由主容器直接提供（8501），面板内不必重复启动

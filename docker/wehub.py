@@ -380,5 +380,8 @@ setInterval(refresh, 3000);
 
 if __name__ == "__main__":
     os.makedirs(LOG_DIR, exist_ok=True)
+    if not TOKEN:
+        print("[WEHUB] ⚠️ 未设置 WEHUB_TOKEN —— 面板无鉴权，任何能访问本端口的人可操作你的客户端！")
+        print("[WEHUB]    建议: docker compose 目录 .env 写入 WEHUB_TOKEN=口令 后重建, 访问 http://HOST:8901/?token=口令")
     print(f"[WEHUB] GA Web Hub on http://{HOST}:{PORT}  (token: {'set' if TOKEN else 'none'})  root={ROOT}")
     run(host=HOST, port=PORT, quiet=True)
