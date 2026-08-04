@@ -30,6 +30,7 @@ services:
     build: .
     image: genericagent:latest
     container_name: ga-wehub
+    command: wehub            # 覆盖镜像默认 CMD(streamlit), 使入口走 wehub 模式
     ports:
       - "8901:8901"     # 管理面板
       - "8502:8502"     # 面板内启动 stapp2 的对外端口
