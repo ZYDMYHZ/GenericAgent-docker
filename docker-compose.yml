@@ -21,19 +21,10 @@ services:
     volumes:
       # 必填: API 密钥(从 mykey_template.py 复制为 ./mykey.py 并填写后挂载, 只读)
       - ./mykey.py:/app/mykey.py:ro
-      # 持久化: 自进化记忆 + 工作目录(首次启动自动从内置种子恢复 SOP)
-      - ga_memory:/app/memory
-      - ga_temp:/app/temp
-      # 全量文件挂载: 宿主机 ./ga_app ↔ 容器 /app
-      # 之后取/删容器文件 = 直接在宿主机操作 ./ga_app (memory/temp/mykey 仍由上方挂载覆盖)
-      # ⚠ 第一次 up 前必须先执行:  mkdir -p ga_app && sudo docker cp ga:/app/. ./ga_app/
-      #   否则空目录会遮住镜像内全部代码, 容器起不来!
-      # ⚠ 挂载优先于镜像层: 以后 git pull + build 的新代码不会自动进 ./ga_app,
-      #   需手动同步(见 docs/docker_zh.md 或 rsync -a --delete ./ ./ga_app/ 排除卷目录)
-      - ./ga_app:/app
+      # 数据: 本地目录持久化, 宿主机直接可取/删文件
+      # git pull / build 只更新镜像内代码, 不触碰 /data → 数据永不被覆盖
+      - /data/ga/memory:/app/memory
+      - /data/ga/temp:/app/temp
     restart: unless-stopped
     # 其他模式(一次性): docker compose run --rm --no-deps ga tui / cli / agent ...
 
-volumes:
-  ga_memory:
-  ga_temp:

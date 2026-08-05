@@ -32,8 +32,6 @@ assets/demo/
 assets/images/
 assets/GenericAgent_Technical_Report.pdf
 
-# ── 宿主挂载目录(不进镜像, 避免 build context 膨胀) ──
-ga_app/
 
 # ── 平台无关 ──
 .vscode/
