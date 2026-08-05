@@ -21,10 +21,10 @@ services:
     volumes:
       # 必填: API 密钥(从 mykey_template.py 复制为 ./mykey.py 并填写后挂载, 只读)
       - ./mykey.py:/app/mykey.py:ro
-      # 数据: 本地目录持久化, 宿主机直接可取/删文件
-      # git pull / build 只更新镜像内代码, 不触碰 /data → 数据永不被覆盖
-      - /data/ga/memory:/app/memory
-      - /data/ga/temp:/app/temp
+      # 数据: 项目目录 data/ 下本地持久化, 宿主机直接可取/删文件
+      # git pull / build 只更新代码文件, 不触碰 data/ (已被 .gitignore/.dockerignore 排除)
+      - ./data/memory:/app/memory
+      - ./data/temp:/app/temp
     restart: unless-stopped
     # 其他模式(一次性): docker compose run --rm --no-deps ga tui / cli / agent ...
 

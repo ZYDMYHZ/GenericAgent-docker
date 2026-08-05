@@ -18,6 +18,8 @@ keychain_*.json
 # ── 运行时数据(体积大且为本机特定) ──
 temp/
 tmp/
+# 容器数据挂载目录: 宿主侧 data/ 不进镜像
+data/
 memory/L4_raw_sessions/
 memory/__pycache__/
 __pycache__/

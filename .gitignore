@@ -1,5 +1,7 @@
 temp/
 tmp/
+# 容器数据挂载目录(记忆+工作目录), 不进 git, 防止数据被 pull 覆盖或误提交
+data/
 
 __pycache__/
 *.py[cod]
